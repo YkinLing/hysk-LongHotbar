@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "hysk.longhotbar.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"longHudMixin",
+		"MouseScrollMixin",
+		"KeyboardMixin",
+		"MixinMinecraftClient"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
