@@ -1,6 +1,7 @@
 package hysk.longhotbar;
 
 import net.minecraft.client.Minecraft;
+<<<<<<< Updated upstream
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.ContainerInput;
@@ -21,12 +22,50 @@ public final class Util {
         MultiPlayerGameMode interactionManager = client.gameMode;
         if (player == null || interactionManager == null) return;
         if (LongHotbarConfig.INSTANCE.modDisabled) return;
+=======
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.InventoryMenu;  // 修正导入
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+
+@OnlyIn(Dist.CLIENT)
+public final class Util {
+
+    private Util() {}
+
+    public static int getExtendedRowStart() {
+        int row = Config.CLIENT.swapRow.get();
+        return (row - 1) * 9 + 9;
+    }
+
+    public static boolean areRowsEqual(LocalPlayer player) {
+        int hotbarStart = 0;
+        int extendedStart = getExtendedRowStart();
+        for (int i = 0; i < 9; i++) {
+            if (!ItemStack.matches(player.getInventory().items.get(hotbarStart + i),
+                    player.getInventory().items.get(extendedStart + i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static void performSwap(Minecraft client, boolean fullRow, int slotIndex) {
+        LocalPlayer player = client.player;
+        if (player == null || client.gameMode == null) return;
+        if (Config.CLIENT.modDisabled.get()) return;
+        // 安全检查：只允许在玩家自己的背包容器中操作
+        if (!(player.containerMenu instanceof InventoryMenu)) return;
+>>>>>>> Stashed changes
 
         int syncId = player.containerMenu.containerId;
         int extendedStart = getExtendedRowStart();
 
         if (fullRow) {
             for (int i = 0; i < 9; i++) {
+<<<<<<< Updated upstream
                 interactionManager.handleContainerInput(syncId, extendedStart + i, i, ContainerInput.SWAP, player);
             }
         } else {
@@ -113,12 +152,104 @@ public final class Util {
             }
         }
         forceSyncInventory(client);
+=======
+                client.gameMode.handleInventoryMouseClick(syncId, extendedStart + i, i, ClickType.SWAP, player);
+            }
+        } else {
+            if (slotIndex < 0 || slotIndex >= 9) return;
+            client.gameMode.handleInventoryMouseClick(syncId, extendedStart + slotIndex, slotIndex, ClickType.SWAP, player);
+        }
+        forceSyncInventory(client);
+        player.containerMenu.broadcastChanges();
+    }
+
+    public static void swapRows(Minecraft client, int rowStartA, int rowStartB) {
+        if (rowStartA == rowStartB) return;
+        LocalPlayer player = client.player;
+        if (player == null || client.gameMode == null) return;
+        if (Config.CLIENT.modDisabled.get()) return;
+        // 安全检查
+        if (!(player.containerMenu instanceof InventoryMenu)) return;
+
+        int syncId = player.containerMenu.containerId;
+
+        if (rowStartA == 0 && rowStartB >= 9 && rowStartB <= 35) {
+            for (int i = 0; i < 9; i++) {
+                client.gameMode.handleInventoryMouseClick(syncId, rowStartB + i, i, ClickType.SWAP, player);
+            }
+        } else if (rowStartB == 0 && rowStartA >= 9 && rowStartA <= 35) {
+            for (int i = 0; i < 9; i++) {
+                client.gameMode.handleInventoryMouseClick(syncId, rowStartA + i, i, ClickType.SWAP, player);
+            }
+        } else {
+            // 使用主行作为中转
+            for (int i = 0; i < 9; i++) {
+                client.gameMode.handleInventoryMouseClick(syncId, rowStartA + i, i, ClickType.SWAP, player);
+            }
+            for (int i = 0; i < 9; i++) {
+                client.gameMode.handleInventoryMouseClick(syncId, rowStartB + i, i, ClickType.SWAP, player);
+            }
+            for (int i = 0; i < 9; i++) {
+                client.gameMode.handleInventoryMouseClick(syncId, rowStartA + i, i, ClickType.SWAP, player);
+            }
+        }
+        forceSyncInventory(client);
+        player.containerMenu.broadcastChanges();
+    }
+
+    public static void rotateRows(Minecraft client, int[] rowStarts, boolean forward) {
+        LocalPlayer player = client.player;
+        if (player == null || client.gameMode == null) return;
+        if (Config.CLIENT.modDisabled.get()) return;
+        if (!(player.containerMenu instanceof InventoryMenu)) return;
+
+        int n = rowStarts.length;
+        if (n <= 1) return;
+
+        int syncId = player.containerMenu.containerId;
+
+        if (forward) {
+            int[] tempSlots = new int[9];
+            for (int i = 0; i < 9; i++) tempSlots[i] = rowStarts[n - 1] + i;
+
+            for (int r = n - 1; r > 0; r--) {
+                for (int i = 0; i < 9; i++) {
+                    client.gameMode.handleInventoryMouseClick(syncId, rowStarts[r - 1] + i, i, ClickType.SWAP, player);
+                }
+            }
+            for (int i = 0; i < 9; i++) {
+                client.gameMode.handleInventoryMouseClick(syncId, tempSlots[i], i, ClickType.SWAP, player);
+            }
+        } else {
+            int[] tempSlots = new int[9];
+            for (int i = 0; i < 9; i++) tempSlots[i] = rowStarts[0] + i;
+
+            for (int r = 0; r < n - 1; r++) {
+                for (int i = 0; i < 9; i++) {
+                    client.gameMode.handleInventoryMouseClick(syncId, rowStarts[r + 1] + i, i, ClickType.SWAP, player);
+                }
+            }
+            for (int i = 0; i < 9; i++) {
+                client.gameMode.handleInventoryMouseClick(syncId, tempSlots[i], i, ClickType.SWAP, player);
+            }
+        }
+
+        forceSyncInventory(client);
+        player.containerMenu.broadcastChanges();
+>>>>>>> Stashed changes
     }
 
     public static void forceSyncInventory(Minecraft client) {
         LocalPlayer player = client.player;
         if (player == null) return;
+<<<<<<< Updated upstream
         // 不需要 markDirty，直接广播更改即可同步
+=======
+        int oldSlot = player.getInventory().selected;
+        player.getInventory().selected = -1;
+        player.getInventory().selected = oldSlot;
+        player.getInventory().setChanged();
+>>>>>>> Stashed changes
         player.containerMenu.broadcastChanges();
     }
 }

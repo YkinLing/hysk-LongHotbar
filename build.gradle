@@ -1,4 +1,5 @@
 plugins {
+<<<<<<< Updated upstream
 	id 'net.fabricmc.fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 }
@@ -82,3 +83,113 @@ publishing {
 		// retrieving dependencies.
 	}
 }
+=======
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
+    id 'com.modrinth.minotaur' version '2.+'
+    id 'maven-publish'
+}
+
+version = project.findProperty('modVersion') ?: modVersion
+base { archivesName = modId }
+group = modGroup
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: mcMappingChannel, version: mcMappingVersion
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            arg "-mixin.config=${modId}.mixins.json"
+            mods { modId { source sourceSets.main } }
+        }
+        data {
+            workingDirectory project.file('run')
+            args "-mixin.config=${modId}.mixins.json", '--mod', modId, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+            mods { modId { source sourceSets.main } }
+        }
+    }
+}
+
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraftVersion}-${forgeVersion}"
+    testAnnotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    implementation 'org.spongepowered:mixin:0.8.5'
+}
+
+mixin {
+    add sourceSets.main, "${modId}.refmap.json"
+    config "${modId}.mixins.json"
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var properties = [
+            minecraftVersion      : minecraftVersion,
+            minecraftVersionRange : minecraftVersionRange,
+            forgeVersion          : forgeVersion,
+            forgeVersionRange     : forgeVersionRange,
+            loaderVersionRange    : loaderVersionRange,
+            modId                 : modId,
+            modVersion            : modVersion,
+            modName               : modName,
+            modAuthors            : modAuthors,
+            modDescription        : modDescription,
+            modLicense            : modLicense,
+            modDisplayURL         : modDisplayURL,
+            modIssueTrackerURL    : modIssueTrackerURL
+    ]
+
+    inputs.properties(properties)
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand(properties + [project: project])
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    finalizedBy 'reobfJar'
+
+    manifest { attributes([
+            'Specification-Title'      : modId,
+            'Specification-Vendor'     : modAuthors,
+            'Specification-Version'    : modVersion,
+            'Implementation-Title'     : project.name,
+            'Implementation-Version'   : project.jar.archiveVersion,
+            'Implementation-Vendor'    : modAuthors,
+            'Implementation-Timestamp' : new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+            'MixinConfigs'             : "${modId}.mixins.json"
+    ])}
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+publishing {
+    publications { mavenJava(MavenPublication) {
+        artifact jar
+
+        version = project.version
+        artifactId = project.archivesBaseName
+        groupId = project.group
+    }}
+
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = modGithubRepoURL
+            credentials {
+                username = System.getenv('GITHUB_ACTOR')
+                password = System.getenv('GITHUB_TOKEN')
+            }
+        }
+    }
+}
+>>>>>>> Stashed changes

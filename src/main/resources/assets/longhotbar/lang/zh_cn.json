@@ -3,6 +3,7 @@
   "key.longhotbar.swap": "交换物品（短按/长按）",
   "key.longhotbar.toggle_disable": "切换原版样式模式",
   "key.longhotbar.scroll_multiplier": "滚轮倍率修饰键",
+<<<<<<< Updated upstream
   "text.autoconfig.longhotbar.title": "长快捷栏配置",
   "text.autoconfig.longhotbar.option.modDisabled": "完全禁用模组",
   "text.autoconfig.longhotbar.option.modDisabled.@Tooltip": "开启后，模组完全禁用：不显示双栏、无法交换物品，且切换键（=）无效。需要通过配置文件或 Mod Menu 关闭此项才能重新启用。",
@@ -39,4 +40,74 @@
   "text.autoconfig.longhotbar.option.scrollMultiplier.@Tooltip": "按住滚轮倍率修饰键时，滚轮滚动一次相当于滚动几格。范围 2-9。",
   "text.autoconfig.longhotbar.option.pickBlockSingleSwap": "启用中键物品选取（整行交换）",
   "text.autoconfig.longhotbar.option.pickBlockSingleSwap.@Tooltip": "开启后，中键点击方块时，会从背包中查找匹配物品并将整行交换到快捷栏。关闭后，中键选取物品将使用原版行为（仅从快捷栏中选取）。"
+=======
+
+  "longhotbar.configuration.client": "长快捷栏配置",
+  "longhotbar.configuration.client.tooltip": "进行配置",
+
+  "longhotbar.configuration.category.general": "通用设置",
+  "longhotbar.configuration.category.dualModeOnly": "双栏模式专用",
+  "longhotbar.configuration.category.common": "通用选项",
+
+  "longhotbar.configuration.modDisabled": "完全禁用模组",
+  "longhotbar.configuration.modDisabled.tooltip": "开启后，模组完全禁用：不显示双栏、无法交换物品，且切换键（=）无效。（适用于所有模式）",
+
+  "longhotbar.configuration.disableMod": "原版样式模式",
+  "longhotbar.configuration.disableMod.tooltip": "仅显示单栏，但交换功能仍可用。（适用于所有模式）",
+
+  "longhotbar.configuration.hotbarMode": "快捷栏模式",
+  "longhotbar.configuration.hotbarMode.tooltip": "DUAL = 双栏（原模式）；TRIPLE = 三栏并排；QUAD = 四栏并排。",
+  "longhotbar.configuration.dual": "双栏",
+  "longhotbar.configuration.triple": "三栏",
+  "longhotbar.configuration.quad": "四栏",
+
+  "longhotbar.configuration.sideGap": "快捷栏间距",
+  "longhotbar.configuration.sideGap.tooltip": "左右（或相邻）快捷栏之间的间距（像素）。（适用于所有模式 默认值为:-1）",
+
+  "longhotbar.configuration.offhandOffset": "副手栏偏移",
+  "longhotbar.configuration.offhandOffset.tooltip": "副手槽图标相对于最左侧快捷栏左边缘的水平偏移。（适用于所有模式 默认值为:-30）",
+
+  "longhotbar.configuration.invertSwapBehavior": "反转模式（仅短按）",
+  "longhotbar.configuration.invertSwapBehavior.tooltip": "（仅双栏模式）关闭时：短按R = 整行交换 + 切换位置，长按R = 仅整行交换。开启时：短按R = 仅整行交换，长按R = 整行交换 + 切换位置。",
+
+  "longhotbar.configuration.singleItemSwapMode": "单物品切换模式（仅短按）",
+  "longhotbar.configuration.singleItemSwapMode.tooltip": "（仅双栏模式）启用后：短按R只交换主手物品。关闭后：短按R交换整行（是否切换位置取决于“反转模式”）。",
+
+  "longhotbar.configuration.swapRow": "替换的物品栏层级",
+  "longhotbar.configuration.swapRow.tooltip": "（仅双栏模式）与主快捷栏交换的背包行：1 = 第一行（槽位9-17），2 = 第二行（18-26），3 = 第三行（27-35）。",
+
+  "longhotbar.configuration.reverseSwapRowCycle": "反转背包层级切换顺序",
+  "longhotbar.configuration.reverseSwapRowCycle.tooltip": "（仅双栏模式）开启后，长按 = 键时背包层级从下往上循环（3→2→1→3），而不是从上往下（1→2→3→1）。",
+
+  "longhotbar.configuration.longPressOnlySwapMainHand": "点按交换其他8个物品",
+  "longhotbar.configuration.longPressOnlySwapMainHand.tooltip": "（仅双栏模式）开启时：点按R交换快捷栏中除当前选中槽位以外的其他8个物品（主手物品不变）。关闭时：点按R遵循“单物品切换模式”和“反转模式”的定义。",
+
+  "longhotbar.configuration.swapEqualShortLongPress": "反转等于键短按/长按功能",
+  "longhotbar.configuration.swapEqualShortLongPress.tooltip": "（仅双栏模式）开启后，短按 = 键切换背包层级，长按 = 键切换原版样式模式；关闭时相反。",
+
+  "longhotbar.configuration.longPressDelayMs": "长按延迟（毫秒）",
+  "longhotbar.configuration.longPressDelayMs.tooltip": "按住 R 或 = 键需要持续多少毫秒才会触发长按动作。范围：180–1000 毫秒。（适用于所有模式）",
+
+  "longhotbar.configuration.playSwapSound": "播放交换音效",
+  "longhotbar.configuration.playSwapSound.tooltip": "开启后，通过按键（R、=、数字键双击）交换物品或切换快捷栏位置时播放拾取音效。滚轮自动切换时不播放。（适用于所有模式）",
+
+  "longhotbar.configuration.enableCtrlNumberShortcuts": "启用修饰键+数字快捷键",
+  "longhotbar.configuration.enableCtrlNumberShortcuts.tooltip": "开启后，按修饰键+1/2/3/4 可直接切换快捷栏模式，且不会改变选中的快捷栏槽位。（适用于所有模式）",
+
+  "longhotbar.configuration.shortcutModifierKey": "快捷键修饰键",
+  "longhotbar.configuration.shortcutModifierKey.tooltip": "按住此键同时按数字1-4可快速切换模式。（Ctrl+2=双栏，Ctrl+3=三栏，Ctrl+4=四栏，Ctrl+1切换原版样式模式）。可选值：左Ctrl、右Ctrl、左Alt、右Alt、左Shift、右Shift。（适用于所有模式）",
+
+  "longhotbar.configuration.left_control": "左 Ctrl",
+  "longhotbar.configuration.right_control": "右 Ctrl",
+  "longhotbar.configuration.left_alt": "左 Alt",
+  "longhotbar.configuration.right_alt": "右 Alt",
+  "longhotbar.configuration.left_shift": "左 Shift",
+  "longhotbar.configuration.right_shift": "右 Shift",
+
+  "longhotbar.configuration.pickBlockSingleSwap": "启用中键物品选取（整行交换）",
+  "longhotbar.configuration.pickBlockSingleSwap.tooltip": "开启后，中键点击方块时，会从背包中查找匹配物品并将整行交换到快捷栏。关闭后，中键选取物品将使用原版行为（仅从快捷栏中选取）。",
+
+  "longhotbar.configuration.scrollMultiplier": "滚轮倍率",
+  "longhotbar.configuration.scrollMultiplier.tooltip": "按住滚轮倍率修饰键时，滚轮滚动一次相当于滚动几格。范围 2-9。"
+>>>>>>> Stashed changes
 }

@@ -3,6 +3,7 @@
   "key.longhotbar.swap": "Swap Items (Tap/Hold)",
   "key.longhotbar.toggle_disable": "Toggle Vanilla Style Mode",
   "key.longhotbar.scroll_multiplier": "Scroll Multiplier Modifier",
+<<<<<<< Updated upstream
   "text.autoconfig.longhotbar.title": "Long Hotbar Config",
   "text.autoconfig.longhotbar.option.modDisabled": "Completely Disable Mod",
   "text.autoconfig.longhotbar.option.modDisabled.@Tooltip": "When ON, the mod is completely disabled: no double hotbar, no item swapping, and the toggle key (=) will not work. You must turn this off via config file or Mod Menu to re-enable.",
@@ -39,4 +40,74 @@
   "text.autoconfig.longhotbar.option.scrollMultiplier.@Tooltip": "When holding the scroll multiplier modifier key, each scroll step moves the hotbar selection by this many slots. Range 2-9.",
   "text.autoconfig.longhotbar.option.pickBlockSingleSwap": "Enable middle-click pick block (row swap)",
   "text.autoconfig.longhotbar.option.pickBlockSingleSwap.@Tooltip": "When ON, middle-clicking a block will search the inventory and swap the entire matching row into the hotbar. When OFF, middle-click behaves as vanilla (only searches the hotbar)."
+=======
+
+  "longhotbar.configuration.client": "Long Hotbar Configuration",
+  "longhotbar.configuration.client.tooltip": "Configure Long Hotbar",
+
+  "longhotbar.configuration.category.general": "General",
+  "longhotbar.configuration.category.dualModeOnly": "DUAL Mode Only",
+  "longhotbar.configuration.category.common": "Common",
+
+  "longhotbar.configuration.modDisabled": "Completely Disable Mod",
+  "longhotbar.configuration.modDisabled.tooltip": "When ON, the mod is completely disabled: no double hotbar, no item swapping, and the toggle key (=) does nothing. (Applies to all modes)",
+
+  "longhotbar.configuration.disableMod": "Vanilla Style Mode",
+  "longhotbar.configuration.disableMod.tooltip": "Single bar appearance, swapping still works. (Applies to all modes)",
+
+  "longhotbar.configuration.hotbarMode": "Hotbar Mode",
+  "longhotbar.configuration.hotbarMode.tooltip": "DUAL = two bars (original); TRIPLE = three side‑by‑side; QUAD = four side‑by‑side.",
+  "longhotbar.configuration.dual": "DUAL",
+  "longhotbar.configuration.triple": "TRIPLE",
+  "longhotbar.configuration.quad": "QUAD",
+
+  "longhotbar.configuration.sideGap": "Hotbar Spacing",
+  "longhotbar.configuration.sideGap.tooltip": "Gap between hotbars in pixels. (Applies to all modes)",
+
+  "longhotbar.configuration.offhandOffset": "Offhand Offset",
+  "longhotbar.configuration.offhandOffset.tooltip": "Horizontal offset of offhand slot from left edge of leftmost hotbar. (Applies to all modes)",
+
+  "longhotbar.configuration.invertSwapBehavior": "Invert Swap Behavior (Tap only)",
+  "longhotbar.configuration.invertSwapBehavior.tooltip": "(DUAL mode only) When OFF: Tap R = full row swap + toggle position, Hold R = full row swap only. When ON: Tap R = full row swap only, Hold R = full row swap + toggle position.",
+
+  "longhotbar.configuration.singleItemSwapMode": "Single Item Swap Mode (Tap only)",
+  "longhotbar.configuration.singleItemSwapMode.tooltip": "(DUAL mode only) When ON: Tap R swaps only the main hand item. When OFF: Tap R swaps the entire row (position toggling depends on Invert Swap Behavior).",
+
+  "longhotbar.configuration.swapRow": "Swap Row",
+  "longhotbar.configuration.swapRow.tooltip": "(DUAL mode only) Which inventory row to swap with the main hotbar: 1 = top row (slots 9-17), 2 = middle row (18-26), 3 = bottom row (27-35).",
+
+  "longhotbar.configuration.reverseSwapRowCycle": "Reverse swap row cycle order",
+  "longhotbar.configuration.reverseSwapRowCycle.tooltip": "(DUAL mode only) When ON, long pressing = cycles swap row from bottom to top (3→2→1→3) instead of top to bottom (1→2→3→1).",
+
+  "longhotbar.configuration.longPressOnlySwapMainHand": "Tap swaps the other 8 items",
+  "longhotbar.configuration.longPressOnlySwapMainHand.tooltip": "(DUAL mode only) When ON: tapping R swaps the 8 items in the hotbar other than the currently selected slot (the main hand item stays). When OFF: tapping R follows the behavior defined by Single Item Swap Mode and Invert Swap Behavior.",
+
+  "longhotbar.configuration.swapEqualShortLongPress": "Swap = Key Short/Long Press Functions",
+  "longhotbar.configuration.swapEqualShortLongPress.tooltip": "(DUAL mode only) When ON, short pressing = cycles the swap row, and long pressing toggles vanilla style mode. When OFF, short pressing toggles vanilla style mode, and long pressing cycles the swap row.",
+
+  "longhotbar.configuration.longPressDelayMs": "Long press delay (ms)",
+  "longhotbar.configuration.longPressDelayMs.tooltip": "How many milliseconds you must hold R or = to trigger a long press action. Range: 180–1000 ms. (Applies to all modes)",
+
+  "longhotbar.configuration.playSwapSound": "Play Swap Sound Effect",
+  "longhotbar.configuration.playSwapSound.tooltip": "When ON, plays a pickup sound when swapping items or toggling hotbar position via key presses (R, =, double-tap numbers). Does not play for scroll wheel auto-swap. (Applies to all modes)",
+
+  "longhotbar.configuration.enableCtrlNumberShortcuts": "Enable Modifier+Number Shortcuts",
+  "longhotbar.configuration.enableCtrlNumberShortcuts.tooltip": "When ON, pressing modifier key + 1/2/3/4 switches hotbar mode without changing the selected slot. (Applies to all modes)",
+
+  "longhotbar.configuration.shortcutModifierKey": "Shortcut Modifier Key",
+  "longhotbar.configuration.shortcutModifierKey.tooltip": "The modifier key to hold while pressing 1-4 for quick mode switching. (Ctrl+2→DUAL, Ctrl+3→TRIPLE, Ctrl+4→QUAD, Ctrl+1 toggles Vanilla Style). Options: Left Ctrl, Right Ctrl, Left Alt, Right Alt, Left Shift, Right Shift. (Applies to all modes)",
+
+  "longhotbar.configuration.left_control": "Left Ctrl",
+  "longhotbar.configuration.right_control": "Right Ctrl",
+  "longhotbar.configuration.left_alt": "Left Alt",
+  "longhotbar.configuration.right_alt": "Right Alt",
+  "longhotbar.configuration.left_shift": "Left Shift",
+  "longhotbar.configuration.right_shift": "Right Shift",
+
+  "longhotbar.configuration.pickBlockSingleSwap": "Enable Middle-click Pick Block (Row Swap)",
+  "longhotbar.configuration.pickBlockSingleSwap.tooltip": "When ON, middle-clicking a block will search the inventory and swap the entire matching row into the hotbar. When OFF, middle-click behaves as vanilla (only searches the hotbar).",
+
+  "longhotbar.configuration.scrollMultiplier": "Scroll Multiplier",
+  "longhotbar.configuration.scrollMultiplier.tooltip": "When holding the scroll multiplier modifier key, each scroll step moves the hotbar selection by this many slots. Range 2-9."
+>>>>>>> Stashed changes
 }
