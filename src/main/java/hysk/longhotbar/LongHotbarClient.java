@@ -1,92 +1,92 @@
 package hysk.longhotbar;
 
-import me.shedaniel.autoconfig.AutoConfig;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.Identifier;
-import org.lwjgl.glfw.GLFW;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
 
 import java.time.Instant;
 
 @Environment(EnvType.CLIENT)
 public class LongHotbarClient implements ClientModInitializer {
 
-    private static KeyBinding swapKeyBinding;
-    private static KeyBinding toggleDisableKeyBinding;
+    // 声明为静态字段，方便 handleScroll 和 KeyboardMixin 统一调用
+    public static KeyMapping swapKeyBinding;
+    public static KeyMapping toggleDisableKeyBinding;
+    public static KeyMapping scrollMultiplierKeyBinding;
 
-    // R 键状态
     private boolean wasPressed = false;
     private long pressStartTime = 0;
     private boolean longPressExecuted = false;
 
-    // = 键状态
     private boolean wasEqualPressed = false;
     private long equalPressStartTime = 0;
     private boolean equalLongPressExecuted = false;
 
-    // 数字键双击
-    private boolean[] hotbarKeys = new boolean[9];
-    private long[] doubleTapTimer = new long[9];
+    private final boolean[] hotbarKeys = new boolean[9];
+    private final long[] doubleTapTimer = new long[9];
 
-    // Ctrl+数字快捷键的状态追踪
-    private boolean[] numberKeysPressed = new boolean[10]; // 1-9
-    private boolean ctrlPressed = false;
-
-    private static void playSwapSoundIfEnabled() {
+    // 供 KeyboardMixin 调用，必须 public static
+    public static void playSwapSoundIfEnabled() {
         if (!LongHotbarConfig.INSTANCE.playSwapSound) return;
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
-            client.player.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 1.0f, 0.5f);
+            client.player.playSound(SoundEvents.ITEM_PICKUP, 1.0f, 0.5f);
         }
     }
 
-    // 循环切换背包层级（DUAL模式）
     private void cycleSwapRow() {
-        playSwapSoundIfEnabled();
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return;
+
+        boolean isVanillaMode = LongHotbarConfig.INSTANCE.disableMod;
         int currentRow = LongHotbarConfig.INSTANCE.swapRow;
-        int nextRow;
-        if (LongHotbarConfig.INSTANCE.reverseSwapRowCycle) {
-            nextRow = currentRow - 1;
-            if (nextRow < 1) nextRow = 3;
-        } else {
-            nextRow = currentRow % 3 + 1;
+        int nextRow = LongHotbarConfig.INSTANCE.reverseSwapRowCycle
+                ? (currentRow == 1 ? 3 : currentRow - 1)
+                : (currentRow % 3 + 1);
+
+        if (isVanillaMode) {
+            int extendedStart = (currentRow - 1) * 9 + 9;
+            Util.swapRows(client, 0, extendedStart);
+            LongHotbarConfig.INSTANCE.swappedPosition = !LongHotbarConfig.INSTANCE.swappedPosition;
+            playSwapSoundIfEnabled();
         }
         LongHotbarConfig.INSTANCE.swapRow = nextRow;
-        AutoConfig.getConfigHolder(LongHotbarConfig.class).save();
+        me.shedaniel.autoconfig.AutoConfig.getConfigHolder(LongHotbarConfig.class).save();
+        if (!isVanillaMode) {
+            playSwapSoundIfEnabled();
+        }
     }
 
     @Override
     public void onInitializeClient() {
         LongHotbarConfig.init();
+        LongHotbar.LOGGER.info("LongHotbarClient initializing...");
 
-        KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("longhotbar", "keybinds"));
-        swapKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.longhotbar.swap",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_R,
-                category
-        ));
-        toggleDisableKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.longhotbar.toggle_disable",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_EQUAL,
-                category
-        ));
+        // 关键修复：在客户端入口点正确注册按键类别和按键映射
+        KeyMapping.Category category = KeyMapping.Category.register(
+                Identifier.fromNamespaceAndPath(LongHotbar.MOD_ID, "keybinds")
+        );
+
+
+        swapKeyBinding = new KeyMapping("key.longhotbar.swap", 21, category);
+        toggleDisableKeyBinding = new KeyMapping("key.longhotbar.toggle_disable", 46, category);
+        scrollMultiplierKeyBinding = new KeyMapping("key.longhotbar.scroll_multiplier", 53, category);
+
+        // 使用 Fabric API 注册按键映射
+        KeyMappingHelper.registerKeyMapping(swapKeyBinding);
+        KeyMappingHelper.registerKeyMapping(toggleDisableKeyBinding);
+        KeyMappingHelper.registerKeyMapping(scrollMultiplierKeyBinding);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
             if (LongHotbarConfig.INSTANCE.modDisabled) return;
-
-            // 处理快捷键：Ctrl+数字切换模式（可配置修饰键）
-            handleModeSwitchShortcuts(client);
 
             LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
             if (mode == LongHotbarConfig.HotbarMode.TRIPLE || mode == LongHotbarConfig.HotbarMode.QUAD) {
@@ -95,50 +95,12 @@ public class LongHotbarClient implements ClientModInitializer {
                 handleDualBarTick(client);
             }
         });
+
+        LongHotbar.LOGGER.info("LongHotbarClient initialization complete.");
     }
 
-    // 处理 Ctrl+数字 切换模式
-    private void handleModeSwitchShortcuts(MinecraftClient client) {
-        if (!LongHotbarConfig.INSTANCE.enableCtrlNumberShortcuts) return;
-        long window = client.getWindow().getHandle();
-        boolean modifierPressed = isModifierKeyPressed(window);
-        if (!modifierPressed) {
-            for (int i = 0; i < numberKeysPressed.length; i++) numberKeysPressed[i] = false;
-            ctrlPressed = false;
-            return;
-        }
-        if (!ctrlPressed) {
-            ctrlPressed = true;
-            for (int i = 0; i < numberKeysPressed.length; i++) numberKeysPressed[i] = false;
-        }
-
-        for (int i = 1; i <= 4; i++) {
-            int keyCode = GLFW.GLFW_KEY_1 + (i - 1);
-            boolean current = GLFW.glfwGetKey(window, keyCode) == GLFW.GLFW_PRESS;
-            if (current && !numberKeysPressed[i]) {
-                numberKeysPressed[i] = true;
-                onModeShortcutPressed(client, i);
-                break;
-            } else if (!current) {
-                numberKeysPressed[i] = false;
-            }
-        }
-    }
-
-    private boolean isModifierKeyPressed(long window) {
-        LongHotbarConfig.ModifierKey modKey = LongHotbarConfig.INSTANCE.shortcutModifierKey;
-        int keyCode = switch (modKey) {
-            case LEFT_CONTROL -> GLFW.GLFW_KEY_LEFT_CONTROL;
-            case RIGHT_CONTROL -> GLFW.GLFW_KEY_RIGHT_CONTROL;
-            case LEFT_ALT -> GLFW.GLFW_KEY_LEFT_ALT;
-            case RIGHT_ALT -> GLFW.GLFW_KEY_RIGHT_ALT;
-            case LEFT_SHIFT -> GLFW.GLFW_KEY_LEFT_SHIFT;
-            case RIGHT_SHIFT -> GLFW.GLFW_KEY_RIGHT_SHIFT;
-        };
-        return GLFW.glfwGetKey(window, keyCode) == GLFW.GLFW_PRESS;
-    }
-
-    private void onModeShortcutPressed(MinecraftClient client, int number) {
+    // ========== Ctrl+数字快捷键（由 KeyboardMixin 调用） ==========
+    public static void onModeShortcutPressed(Minecraft client, int number) {
         LongHotbarConfig.HotbarMode newMode = null;
         boolean toggleDisable = false;
         switch (number) {
@@ -149,23 +111,21 @@ public class LongHotbarClient implements ClientModInitializer {
             default -> { return; }
         }
         if (toggleDisable) {
-            boolean current = LongHotbarConfig.INSTANCE.disableMod;
-            LongHotbarConfig.INSTANCE.disableMod = !current;
+            LongHotbarConfig.INSTANCE.disableMod = !LongHotbarConfig.INSTANCE.disableMod;
         } else if (newMode != null) {
             LongHotbarConfig.INSTANCE.hotbarMode = newMode;
             LongHotbarConfig.INSTANCE.disableMod = false;
             UltraModeHandler.reset();
         }
-        AutoConfig.getConfigHolder(LongHotbarConfig.class).save();
+        me.shedaniel.autoconfig.AutoConfig.getConfigHolder(LongHotbarConfig.class).save();
         playSwapSoundIfEnabled();
     }
 
-    // ========== DUAL 模式逻辑 ==========
-    private void handleDualBarTick(MinecraftClient client) {
-        boolean equalPressed = toggleDisableKeyBinding.isPressed();
+    // ========== DUAL 模式 ==========
+    private void handleDualBarTick(Minecraft client) {
+        boolean equalPressed = toggleDisableKeyBinding.isDown();
         boolean invertEqual = LongHotbarConfig.INSTANCE.swapEqualShortLongPress;
 
-        // = 键处理
         if (equalPressed && !wasEqualPressed) {
             wasEqualPressed = true;
             equalPressStartTime = Instant.now().toEpochMilli();
@@ -175,22 +135,8 @@ public class LongHotbarClient implements ClientModInitializer {
             wasEqualPressed = false;
             if (!equalLongPressExecuted && duration < LongHotbarConfig.INSTANCE.longPressDelayMs) {
                 if (invertEqual) {
-                    // 原版样式模式：交换当前背包行并切换到下一行
                     if (LongHotbarConfig.INSTANCE.disableMod) {
-                        int currentRow = LongHotbarConfig.INSTANCE.swapRow;
-                        int extendedStart = (currentRow - 1) * 9 + 9;
-                        Util.swapRows(client, 0, extendedStart);
-                        playSwapSoundIfEnabled();
-                        int nextRow;
-                        if (LongHotbarConfig.INSTANCE.reverseSwapRowCycle) {
-                            nextRow = currentRow - 1;
-                            if (nextRow < 1) nextRow = 3;
-                        } else {
-                            nextRow = currentRow % 3 + 1;
-                        }
-                        LongHotbarConfig.INSTANCE.swapRow = nextRow;
-                        AutoConfig.getConfigHolder(LongHotbarConfig.class).save();
-                        Util.forceSyncInventory(client);
+                        doSwapAndCycleRow(client);
                     } else {
                         cycleSwapRow();
                     }
@@ -199,7 +145,6 @@ public class LongHotbarClient implements ClientModInitializer {
                     LongHotbarConfig.INSTANCE.toggleDisableMod();
                 }
             }
-            equalLongPressExecuted = false;
         } else if (equalPressed && wasEqualPressed && !equalLongPressExecuted) {
             long duration = Instant.now().toEpochMilli() - equalPressStartTime;
             if (duration >= LongHotbarConfig.INSTANCE.longPressDelayMs) {
@@ -207,33 +152,14 @@ public class LongHotbarClient implements ClientModInitializer {
                     playSwapSoundIfEnabled();
                     LongHotbarConfig.INSTANCE.toggleDisableMod();
                 } else {
-                    // 原版样式模式下长按应轮回背包行
-                    if (LongHotbarConfig.INSTANCE.disableMod) {
-                        int currentRow = LongHotbarConfig.INSTANCE.swapRow;
-                        int extendedStart = (currentRow - 1) * 9 + 9;
-                        Util.swapRows(client, 0, extendedStart);
-                        playSwapSoundIfEnabled();
-                        int nextRow;
-                        if (LongHotbarConfig.INSTANCE.reverseSwapRowCycle) {
-                            nextRow = currentRow - 1;
-                            if (nextRow < 1) nextRow = 3;
-                        } else {
-                            nextRow = currentRow % 3 + 1;
-                        }
-                        LongHotbarConfig.INSTANCE.swapRow = nextRow;
-                        AutoConfig.getConfigHolder(LongHotbarConfig.class).save();
-                        Util.forceSyncInventory(client);
-                    } else {
-                        cycleSwapRow();
-                    }
+                    doSwapAndCycleRow(client);
                 }
                 equalLongPressExecuted = true;
             }
         }
 
-        // R 键处理
-        boolean pressed = swapKeyBinding.isPressed();
-        boolean canInteract = client.currentScreen == null && MinecraftClient.isHudEnabled();
+        boolean pressed = swapKeyBinding.isDown();
+        boolean canInteract = client.gui.screen() == null;
         if (canInteract) {
             if (pressed && !wasPressed) {
                 wasPressed = true;
@@ -258,9 +184,8 @@ public class LongHotbarClient implements ClientModInitializer {
             wasPressed = false;
         }
 
-        // 数字键双击
         for (int i = 0; i < 9; i++) {
-            boolean current = client.options.hotbarKeys[i].isPressed();
+            boolean current = client.options.keyHotbarSlots[i].isDown();
             if (current != hotbarKeys[i]) {
                 hotbarKeys[i] = current;
                 if (current) {
@@ -277,8 +202,26 @@ public class LongHotbarClient implements ClientModInitializer {
         }
     }
 
-    private void handleDualShortPress(PlayerEntity player) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void doSwapAndCycleRow(Minecraft client) {
+        int currentRow = LongHotbarConfig.INSTANCE.swapRow;
+        int extendedStart = (currentRow - 1) * 9 + 9;
+        Util.swapRows(client, 0, extendedStart);
+
+        int nextRow;
+        if (LongHotbarConfig.INSTANCE.reverseSwapRowCycle) {
+            nextRow = currentRow - 1;
+            if (nextRow < 1) nextRow = 3;
+        } else {
+            nextRow = currentRow % 3 + 1;
+        }
+        LongHotbarConfig.INSTANCE.swapRow = nextRow;
+        me.shedaniel.autoconfig.AutoConfig.getConfigHolder(LongHotbarConfig.class).save();
+        playSwapSoundIfEnabled();
+        Util.forceSyncInventory(client);
+    }
+
+    private void handleDualShortPress(LocalPlayer player) {
+        Minecraft client = Minecraft.getInstance();
         if (LongHotbarConfig.INSTANCE.longPressOnlySwapMainHand) {
             int selected = player.getInventory().getSelectedSlot();
             for (int i = 0; i < 9; i++) {
@@ -298,20 +241,19 @@ public class LongHotbarClient implements ClientModInitializer {
         }
     }
 
-    private void handleDualLongPress(PlayerEntity player) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private void handleDualLongPress(LocalPlayer player) {
+        Minecraft client = Minecraft.getInstance();
         Util.performSwap(client, true, 0);
         if (LongHotbarConfig.INSTANCE.invertSwapBehavior) {
             LongHotbarConfig.INSTANCE.toggleSwappedPosition();
         }
     }
 
-    // ========== 多栏模式逻辑 ==========
-    private void handleMultiBarTick(MinecraftClient client) {
+    // ========== 多栏模式 ==========
+    private void handleMultiBarTick(Minecraft client) {
         UltraModeHandler.init();
 
-        // = 键处理（适配 swapEqualShortLongPress）
-        boolean equalPressed = toggleDisableKeyBinding.isPressed();
+        boolean equalPressed = toggleDisableKeyBinding.isDown();
         boolean invertEqual = LongHotbarConfig.INSTANCE.swapEqualShortLongPress;
 
         if (equalPressed && !wasEqualPressed) {
@@ -323,31 +265,22 @@ public class LongHotbarClient implements ClientModInitializer {
             wasEqualPressed = false;
             if (!equalLongPressExecuted && duration < LongHotbarConfig.INSTANCE.longPressDelayMs) {
                 if (invertEqual) {
-                    // 短按循环背包行
-                    LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
-                    int[] backpackRowStarts = (mode == LongHotbarConfig.HotbarMode.TRIPLE) ?
-                            new int[]{9, 18, 27} : new int[]{9, 18, 27};
+                    int[] backpackRowStarts = {9, 18, 27};
                     Util.rotateRows(client, backpackRowStarts, true);
                     playSwapSoundIfEnabled();
                 } else {
-                    // 短按切换原版样式模式
                     playSwapSoundIfEnabled();
                     LongHotbarConfig.INSTANCE.toggleDisableMod();
                 }
             }
-            equalLongPressExecuted = false;
         } else if (equalPressed && wasEqualPressed && !equalLongPressExecuted) {
             long duration = Instant.now().toEpochMilli() - equalPressStartTime;
             if (duration >= LongHotbarConfig.INSTANCE.longPressDelayMs) {
                 if (invertEqual) {
-                    // 长按切换原版样式模式
                     playSwapSoundIfEnabled();
                     LongHotbarConfig.INSTANCE.toggleDisableMod();
                 } else {
-                    // 长按循环背包行
-                    LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
-                    int[] backpackRowStarts = (mode == LongHotbarConfig.HotbarMode.TRIPLE) ?
-                            new int[]{9, 18, 27} : new int[]{9, 18, 27};
+                    int[] backpackRowStarts = {9, 18, 27};
                     Util.rotateRows(client, backpackRowStarts, true);
                     playSwapSoundIfEnabled();
                 }
@@ -355,9 +288,8 @@ public class LongHotbarClient implements ClientModInitializer {
             }
         }
 
-        // R 键处理
-        boolean rPressed = swapKeyBinding.isPressed();
-        boolean canInteract = client.currentScreen == null && MinecraftClient.isHudEnabled();
+        boolean rPressed = swapKeyBinding.isDown();
+        boolean canInteract = client.gui.screen() == null;
         if (canInteract) {
             if (rPressed && !wasPressed) {
                 wasPressed = true;
@@ -383,15 +315,12 @@ public class LongHotbarClient implements ClientModInitializer {
         }
     }
 
-    private void handleMultiBarShortPress(MinecraftClient client) {
+    private void handleMultiBarShortPress(Minecraft client) {
         UltraModeHandler.init();
         LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
         int barCount = (mode == LongHotbarConfig.HotbarMode.TRIPLE) ? 3 : 4;
         int current = UltraModeHandler.getFocusedBar();
-        if (current < 0 || current >= barCount) {
-            current = 0;
-            UltraModeHandler.setFocusedBar(0);
-        }
+        if (current < 0 || current >= barCount) current = 0;
         int next = (current + 1) % barCount;
         int[] displayOrder = UltraModeHandler.getDisplayOrder();
         if (displayOrder.length != barCount) {
@@ -408,15 +337,12 @@ public class LongHotbarClient implements ClientModInitializer {
         Util.forceSyncInventory(client);
     }
 
-    private void handleMultiBarLongPress(MinecraftClient client) {
+    private void handleMultiBarLongPress(Minecraft client) {
         UltraModeHandler.init();
         LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
         int barCount = (mode == LongHotbarConfig.HotbarMode.TRIPLE) ? 3 : 4;
         int current = UltraModeHandler.getFocusedBar();
-        if (current < 0 || current >= barCount) {
-            current = 0;
-            UltraModeHandler.setFocusedBar(0);
-        }
+        if (current < 0 || current >= barCount) current = 0;
         int prev = (current - 1 + barCount) % barCount;
         int[] displayOrder = UltraModeHandler.getDisplayOrder();
         if (displayOrder.length != barCount) {
@@ -431,5 +357,106 @@ public class LongHotbarClient implements ClientModInitializer {
         displayOrder[prev] = physicalCurrent;
         UltraModeHandler.setFocusedBar(prev);
         Util.forceSyncInventory(client);
+    }
+
+    // ================== 滚轮处理 ==================
+    public static boolean handleScroll(double vertical) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return false;
+        if (LongHotbarConfig.INSTANCE.modDisabled || LongHotbarConfig.INSTANCE.disableMod) return false;
+
+        if (client.gui.screen() != null) {
+            return false;
+        }
+
+        if (LongHotbarClient.scrollMultiplierKeyBinding.isDown()) {
+            int multiplier = LongHotbarConfig.INSTANCE.scrollMultiplier;
+            if (vertical != 0) {
+                int direction = (vertical > 0) ? -1 : 1;
+                int change = direction * multiplier;
+                LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
+
+                if (mode == LongHotbarConfig.HotbarMode.DUAL) {
+                    int extendedStart = Util.getExtendedRowStart();
+                    boolean swapped = LongHotbarConfig.INSTANCE.swappedPosition;
+                    int selectedSlot = client.player.getInventory().getSelectedSlot();
+                    int logicalIndex = (swapped ? 9 : 0) + selectedSlot;
+                    int newLogical = (logicalIndex + change) % 18;
+                    if (newLogical < 0) newLogical += 18;
+                    int newRow = newLogical / 9;
+                    int newCol = newLogical % 9;
+                    int newRowStart = (newRow == 0) ? 0 : extendedStart;
+                    int currentRowStart = swapped ? extendedStart : 0;
+                    if (newRowStart != currentRowStart) {
+                        Util.swapRows(client, 0, extendedStart);
+                        LongHotbarConfig.INSTANCE.swappedPosition = (newRow == 1);
+                    }
+                    client.player.getInventory().setSelectedSlot(newCol);
+                    Util.forceSyncInventory(client);
+                } else {
+                    int barCount = (mode == LongHotbarConfig.HotbarMode.TRIPLE) ? 3 : 4;
+                    UltraModeHandler.init();
+                    int[] displayOrder = UltraModeHandler.getDisplayOrder();
+                    if (displayOrder.length != barCount) {
+                        UltraModeHandler.initDisplayOrder();
+                        displayOrder = UltraModeHandler.getDisplayOrder();
+                    }
+                    int currentFocused = UltraModeHandler.getFocusedBar();
+                    if (currentFocused < 0 || currentFocused >= barCount) {
+                        currentFocused = 0;
+                        UltraModeHandler.setFocusedBar(0);
+                    }
+                    int currentSlot = client.player.getInventory().getSelectedSlot();
+                    int totalSlots = barCount * 9;
+                    int currentLinear = currentFocused * 9 + currentSlot;
+                    int newLinear = (currentLinear + change) % totalSlots;
+                    if (newLinear < 0) newLinear += totalSlots;
+                    int newFocused = newLinear / 9;
+                    int newSlot = newLinear % 9;
+
+                    if (newFocused != currentFocused) {
+                        int targetPhysical = displayOrder[newFocused];
+                        if (targetPhysical != 0) {
+                            int[] rowStarts = {0, 9, 18, 27};
+                            Util.swapRows(client, 0, rowStarts[targetPhysical]);
+                            int idx0 = -1;
+                            for (int i = 0; i < displayOrder.length; i++) {
+                                if (displayOrder[i] == 0) {
+                                    idx0 = i;
+                                    break;
+                                }
+                            }
+                            if (idx0 != -1 && idx0 != newFocused) {
+                                int temp = displayOrder[idx0];
+                                displayOrder[idx0] = displayOrder[newFocused];
+                                displayOrder[newFocused] = temp;
+                            } else if (idx0 == -1) {
+                                UltraModeHandler.initDisplayOrder();
+                                displayOrder = UltraModeHandler.getDisplayOrder();
+                            }
+                        }
+                    }
+                    UltraModeHandler.setFocusedBar(newFocused);
+                    client.player.getInventory().setSelectedSlot(newSlot);
+                    Util.forceSyncInventory(client);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        int slot = client.player.getInventory().getSelectedSlot();
+        boolean atLeftEdge = (slot == 0 && vertical > 0);
+        boolean atRightEdge = (slot == 8 && vertical < 0);
+        if (atLeftEdge || atRightEdge) {
+            LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
+            if (mode == LongHotbarConfig.HotbarMode.DUAL) {
+                Util.performSwap(client, true, 0);
+                LongHotbarConfig.INSTANCE.toggleSwappedPosition();
+            } else {
+                UltraModeHandler.onMouseScroll(slot, vertical);
+            }
+        }
+        return false;
     }
 }

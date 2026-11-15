@@ -2,48 +2,52 @@ package hysk.longhotbar.mixin;
 
 import hysk.longhotbar.LongHotbarConfig;
 import hysk.longhotbar.Util;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(MinecraftClient.class)
+@Mixin(Minecraft.class)
 public abstract class MixinMinecraftClient {
-    @Shadow public HitResult crosshairTarget;
-    @Shadow public ClientPlayerEntity player;
+    @Shadow public HitResult hitResult;
+    @Shadow public LocalPlayer player;
+    @Shadow public MultiPlayerGameMode gameMode;
 
-    @Inject(method = "doItemPick", at = @At("HEAD"))
-    private void beforeDoItemPick(CallbackInfo ci) {
+    // 注入到 pickBlockOrEntity 方法（鼠标中键选取方块/实体）
+    @Inject(method = "pickBlockOrEntity", at = @At("HEAD"))
+    private void beforePickBlockOrEntity(CallbackInfo ci) {
         if (LongHotbarConfig.INSTANCE.modDisabled) return;
+        if (!LongHotbarConfig.INSTANCE.pickBlockSingleSwap) return;  // 默认关闭时还原原版行为
         if (this.player == null) return;
-        if (this.crosshairTarget == null || this.crosshairTarget.getType() != HitResult.Type.BLOCK) return;
+        if (this.hitResult == null || this.hitResult.getType() != HitResult.Type.BLOCK) return;
 
-        BlockPos pos = ((BlockHitResult) this.crosshairTarget).getBlockPos();
-        BlockState state = this.player.getEntityWorld().getBlockState(pos);
+        BlockHitResult blockHit = (BlockHitResult) this.hitResult;
+        BlockState state = this.player.level().getBlockState(blockHit.getBlockPos());
         Block block = state.getBlock();
         if (state.isAir()) return;
 
-        PlayerInventory inv = this.player.getInventory();
-        // 检查热键栏是否已有该方块
+        // 检查主快捷栏是否已有该方块
         for (int i = 0; i < 9; i++) {
-            if (Block.getBlockFromItem(inv.getStack(i).getItem()) == block) return;
+            if (this.player.getInventory().getItem(i).getItem() instanceof BlockItem bi && bi.getBlock() == block) {
+                return;
+            }
         }
-        // 在扩展行中查找（DUAL 模式）或多栏模式的所有背包行中查找
+
         LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
         if (mode == LongHotbarConfig.HotbarMode.DUAL) {
             int extendedStart = Util.getExtendedRowStart();
             for (int i = 0; i < 9; i++) {
-                if (Block.getBlockFromItem(inv.getStack(extendedStart + i).getItem()) == block) {
-                    Util.performSwap((MinecraftClient)(Object)this, true, 0);
+                if (this.player.getInventory().getItem(extendedStart + i).getItem() instanceof BlockItem bi && bi.getBlock() == block) {
+                    Util.performSwap((Minecraft)(Object)this, true, 0);
                     break;
                 }
             }
@@ -51,8 +55,8 @@ public abstract class MixinMinecraftClient {
             int[] rowStarts = {9, 18, 27};
             for (int start : rowStarts) {
                 for (int i = 0; i < 9; i++) {
-                    if (Block.getBlockFromItem(inv.getStack(start + i).getItem()) == block) {
-                        Util.swapRows((MinecraftClient)(Object)this, 0, start);
+                    if (this.player.getInventory().getItem(start + i).getItem() instanceof BlockItem bi && bi.getBlock() == block) {
+                        Util.swapRows((Minecraft)(Object)this, 0, start);
                         return;
                     }
                 }

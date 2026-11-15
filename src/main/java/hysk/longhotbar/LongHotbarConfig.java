@@ -38,7 +38,7 @@ public class LongHotbarConfig implements ConfigData {
     public boolean modDisabled = false;
 
     @ConfigEntry.Gui.Tooltip
-    public boolean disableMod = false;  // 原版样式模式
+    public boolean disableMod = false;
 
     @ConfigEntry.Gui.Tooltip
     public HotbarMode hotbarMode = HotbarMode.DUAL;
@@ -84,9 +84,17 @@ public class LongHotbarConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean swapEqualShortLongPress = true;
 
-    // 多栏模式专用状态（不持久化）
+    // 新增配置项
+    @ConfigEntry.BoundedDiscrete(min = 2, max = 9)
+    @ConfigEntry.Gui.Tooltip
+    public int scrollMultiplier = 3;
+
+    @ConfigEntry.Gui.Tooltip
+    public boolean pickBlockSingleSwap = false;
+
+    // 运行时状态（不持久化）
     @ConfigEntry.Gui.Excluded
-    public transient boolean swappedPosition = false; // DUAL 模式专用
+    public transient boolean swappedPosition = false;
 
     public void toggleSwappedPosition() {
         swappedPosition = !swappedPosition;

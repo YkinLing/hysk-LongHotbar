@@ -2,6 +2,7 @@ package hysk.longhotbar;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.Minecraft;
 
 @Environment(EnvType.CLIENT)
 public final class UltraModeHandler {
@@ -71,8 +72,7 @@ public final class UltraModeHandler {
         int physicalCurrent = displayOrder[current];
         int physicalNeighbor = displayOrder[neighbor];
 
-        // 使用正确的 MinecraftClient 类
-        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         Util.swapRows(client, rowStarts[physicalCurrent], rowStarts[physicalNeighbor]);
 
         // 交换显示顺序（渲染位置）
@@ -82,7 +82,7 @@ public final class UltraModeHandler {
         // 更新焦点栏为相邻栏（让高亮跟随滚动方向）
         setFocusedBar(neighbor);
 
-        // 强制刷新背包显示，消除可能的卡顿
+        // 强制刷新背包显示
         Util.forceSyncInventory(client);
     }
 }

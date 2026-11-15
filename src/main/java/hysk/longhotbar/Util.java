@@ -1,108 +1,103 @@
 package hysk.longhotbar;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.inventory.ContainerInput;
 
 public final class Util {
     private Util() {}
 
-    // DUAL 模式专用：获取扩展行的起始槽位
     public static int getExtendedRowStart() {
         int row = LongHotbarConfig.INSTANCE.swapRow;
         return (row - 1) * 9 + 9;
     }
 
-    // DUAL 模式的交换（整行或单个）
-    public static void performSwap(MinecraftClient client, boolean fullRow, int slotIndex) {
-        ClientPlayerEntity player = client.player;
-        ClientPlayerInteractionManager interactionManager = client.interactionManager;
+    /**
+     * 交换主手与扩展行中的单个物品或整行
+     */
+    public static void performSwap(Minecraft client, boolean fullRow, int slotIndex) {
+        LocalPlayer player = client.player;
+        MultiPlayerGameMode interactionManager = client.gameMode;
         if (player == null || interactionManager == null) return;
         if (LongHotbarConfig.INSTANCE.modDisabled) return;
 
-        int syncId = player.currentScreenHandler.syncId;
+        int syncId = player.containerMenu.containerId;
         int extendedStart = getExtendedRowStart();
 
         if (fullRow) {
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, extendedStart + i, i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, extendedStart + i, i, ContainerInput.SWAP, player);
             }
         } else {
             if (slotIndex < 0 || slotIndex >= 9) return;
-            interactionManager.clickSlot(syncId, extendedStart + slotIndex, slotIndex, SlotActionType.SWAP, player);
+            interactionManager.handleContainerInput(syncId, extendedStart + slotIndex, slotIndex, ContainerInput.SWAP, player);
         }
         forceSyncInventory(client);
-        player.currentScreenHandler.onContentChanged(player.getInventory());
     }
 
     /**
-     * 交换背包中的两整行（每行9格）。
-     * @param rowStartA 起始槽位（0,9,18,27）
-     * @param rowStartB 起始槽位
+     * 交换两整行（每行9格）
      */
-    public static void swapRows(MinecraftClient client, int rowStartA, int rowStartB) {
+    public static void swapRows(Minecraft client, int rowStartA, int rowStartB) {
         if (rowStartA == rowStartB) return;
-        ClientPlayerEntity player = client.player;
-        ClientPlayerInteractionManager interactionManager = client.interactionManager;
+        LocalPlayer player = client.player;
+        MultiPlayerGameMode interactionManager = client.gameMode;
         if (player == null || interactionManager == null) return;
         if (LongHotbarConfig.INSTANCE.modDisabled) return;
 
-        int syncId = player.currentScreenHandler.syncId;
+        int syncId = player.containerMenu.containerId;
 
+        // 如果其中一行是主快捷栏（0），可以直接用SWAP
         if (rowStartA == 0 && rowStartB >= 9 && rowStartB <= 35) {
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, rowStartB + i, i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, rowStartB + i, i, ContainerInput.SWAP, player);
             }
         } else if (rowStartB == 0 && rowStartA >= 9 && rowStartA <= 35) {
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, rowStartA + i, i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, rowStartA + i, i, ContainerInput.SWAP, player);
             }
         } else {
-            // 两行都不是主行 -> 使用主行作为中转
+            // 通过主栏中转
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, rowStartA + i, i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, rowStartA + i, i, ContainerInput.SWAP, player);
             }
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, rowStartB + i, i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, rowStartB + i, i, ContainerInput.SWAP, player);
             }
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, rowStartA + i, i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, rowStartA + i, i, ContainerInput.SWAP, player);
             }
         }
         forceSyncInventory(client);
-        player.currentScreenHandler.onContentChanged(player.getInventory());
     }
 
     /**
-     * 循环移动背包中的多行物品（物理移动）
-     * @param rowStarts  各行起始槽位数组（如 [0,9,18] 或 [0,9,18,27]）
-     * @param forward    true: 向下循环（行0 <- 行1 <- 行2 ... <- 末行 <- 行0）
+     * 循环移动多行（用于多栏模式）
      */
-    public static void rotateRows(MinecraftClient client, int[] rowStarts, boolean forward) {
-        ClientPlayerEntity player = client.player;
-        ClientPlayerInteractionManager interactionManager = client.interactionManager;
+    public static void rotateRows(Minecraft client, int[] rowStarts, boolean forward) {
+        LocalPlayer player = client.player;
+        MultiPlayerGameMode interactionManager = client.gameMode;
         if (player == null || interactionManager == null) return;
         if (LongHotbarConfig.INSTANCE.modDisabled) return;
 
         int n = rowStarts.length;
         if (n <= 1) return;
-        int syncId = player.currentScreenHandler.syncId;
+        int syncId = player.containerMenu.containerId;
 
         if (forward) {
             // 暂存最后一行
             int[] tempSlots = new int[9];
             for (int i = 0; i < 9; i++) tempSlots[i] = rowStarts[n - 1] + i;
-            // 从后向前移动行
+            // 从后向前移动
             for (int r = n - 1; r > 0; r--) {
                 for (int i = 0; i < 9; i++) {
-                    interactionManager.clickSlot(syncId, rowStarts[r - 1] + i, i, SlotActionType.SWAP, player);
+                    interactionManager.handleContainerInput(syncId, rowStarts[r - 1] + i, i, ContainerInput.SWAP, player);
                 }
             }
-            // 将暂存的行放入第一行
+            // 放回第一行
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, tempSlots[i], i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, tempSlots[i], i, ContainerInput.SWAP, player);
             }
         } else {
             // 暂存第一行
@@ -110,24 +105,20 @@ public final class Util {
             for (int i = 0; i < 9; i++) tempSlots[i] = rowStarts[0] + i;
             for (int r = 0; r < n - 1; r++) {
                 for (int i = 0; i < 9; i++) {
-                    interactionManager.clickSlot(syncId, rowStarts[r + 1] + i, i, SlotActionType.SWAP, player);
+                    interactionManager.handleContainerInput(syncId, rowStarts[r + 1] + i, i, ContainerInput.SWAP, player);
                 }
             }
             for (int i = 0; i < 9; i++) {
-                interactionManager.clickSlot(syncId, tempSlots[i], i, SlotActionType.SWAP, player);
+                interactionManager.handleContainerInput(syncId, tempSlots[i], i, ContainerInput.SWAP, player);
             }
         }
-
         forceSyncInventory(client);
-        player.currentScreenHandler.onContentChanged(player.getInventory());
     }
 
-    // ========== 修复后的强制同步方法 ==========
-    public static void forceSyncInventory(MinecraftClient client) {
-        ClientPlayerEntity player = client.player;
+    public static void forceSyncInventory(Minecraft client) {
+        LocalPlayer player = client.player;
         if (player == null) return;
-        // 移除 setSelectedSlot(-1) 避免崩溃，仅通过标记脏数据强制同步
-        player.getInventory().markDirty();
-        player.currentScreenHandler.onContentChanged(player.getInventory());
+        // 不需要 markDirty，直接广播更改即可同步
+        player.containerMenu.broadcastChanges();
     }
 }

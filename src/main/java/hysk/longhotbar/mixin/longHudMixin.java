@@ -2,51 +2,127 @@ package hysk.longhotbar.mixin;
 
 import hysk.longhotbar.LongHotbarConfig;
 import hysk.longhotbar.UltraModeHandler;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.AttackIndicatorStatus;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.gui.Hud;
 
-@Mixin(InGameHud.class)
+@Mixin(Hud.class)
 public abstract class longHudMixin {
 
-    @Shadow @Final private MinecraftClient client;
+    @Shadow @Final private Minecraft minecraft;
 
-    private static final Identifier HOTBAR_TEXTURE = Identifier.ofVanilla("hud/hotbar");
-    private static final Identifier HOTBAR_SELECTION = Identifier.ofVanilla("hud/hotbar_selection");
-    private static final Identifier OFFHAND_LEFT = Identifier.ofVanilla("hud/hotbar_offhand_left");
+    @Unique private static final Identifier HOTBAR_SPRITE = Identifier.withDefaultNamespace("hud/hotbar");
+    @Unique private static final Identifier HOTBAR_SELECTION_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_selection");
+    @Unique private static final Identifier HOTBAR_OFFHAND_LEFT_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_offhand_left");
+    @Unique private static final Identifier HOTBAR_OFFHAND_RIGHT_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_offhand_right");
+    @Unique private static final Identifier HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_attack_indicator_background");
+    @Unique private static final Identifier HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_attack_indicator_progress");
 
-    @Inject(method = "renderHotbar", at = @At("HEAD"), cancellable = true)
-    private void onRenderHotbar(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
-        if (LongHotbarConfig.INSTANCE.modDisabled) return;
-        if (LongHotbarConfig.INSTANCE.disableMod) return;
-        if (this.client.player == null) return;
 
-        ci.cancel();
+
+    @Inject(method = "extractItemHotbar", at = @At("HEAD"), cancellable = true)
+    private void onRenderHotbar(GuiGraphicsExtractor extractor, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (LongHotbarConfig.INSTANCE.modDisabled || LongHotbarConfig.INSTANCE.disableMod) {
+            renderVanillaItemHotbar(extractor, deltaTracker);
+            ci.cancel();
+            return;
+        }
         LongHotbarConfig.HotbarMode mode = LongHotbarConfig.INSTANCE.hotbarMode;
         if (mode == LongHotbarConfig.HotbarMode.DUAL) {
-            renderDualHotbar(context, tickCounter);
-        } else if (mode == LongHotbarConfig.HotbarMode.TRIPLE || mode == LongHotbarConfig.HotbarMode.QUAD) {
-            renderMultiHotbar(context, tickCounter, mode);
+            renderDualHotbar(extractor, deltaTracker);
+        } else {
+            renderMultiHotbar(extractor, deltaTracker, mode);
+        }
+        ci.cancel();
+    }
+
+    @Unique
+    private void renderVanillaItemHotbar(GuiGraphicsExtractor extractor, DeltaTracker deltaTracker) {
+        Player player = this.minecraft.player;
+        if (player == null) return;
+
+        var window = this.minecraft.getWindow();
+        int screenWidth = window.getGuiScaledWidth();
+        int screenHeight = window.getGuiScaledHeight();
+
+        ItemStack offhandItem = player.getOffhandItem();
+        HumanoidArm mainArm = player.getMainArm().getOpposite();
+        int centerX = screenWidth / 2;
+        int hotbarWidth = 182;
+        int hotbarOffset = 91;
+
+        // 背景
+        extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SPRITE, centerX - hotbarOffset, screenHeight - 22, hotbarWidth, 22);
+        // 高亮
+        int selectedSlot = player.getInventory().getSelectedSlot();
+        extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SELECTION_SPRITE, centerX - hotbarOffset - 1 + selectedSlot * 20, screenHeight - 22 - 1, 24, 23);
+        // 副手背景
+        if (!offhandItem.isEmpty()) {
+            if (mainArm == HumanoidArm.LEFT) {
+                extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_OFFHAND_LEFT_SPRITE, centerX - hotbarOffset - 29, screenHeight - 23, 29, 24);
+            } else {
+                extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_OFFHAND_RIGHT_SPRITE, centerX + hotbarOffset, screenHeight - 23, 29, 24);
+            }
+        }
+        // 主手物品
+        for (int i = 0; i < 9; i++) {
+            int x = centerX - 90 + i * 20 + 2;
+            int y = screenHeight - 16 - 3;
+            renderItemStack(extractor, player.getInventory().getItem(i), x, y);
+        }
+        // 副手物品
+        if (!offhandItem.isEmpty()) {
+            int y = screenHeight - 16 - 3;
+            if (mainArm == HumanoidArm.LEFT) {
+                renderItemStack(extractor, offhandItem, centerX - hotbarOffset - 26, y);
+            } else {
+                renderItemStack(extractor, offhandItem, centerX + hotbarOffset + 10, y);
+            }
+        }
+        // 攻击指示器
+        if (this.minecraft.options.attackIndicator().get() == AttackIndicatorStatus.HOTBAR) {
+            float attackStrength = 0.0F;
+            if (this.minecraft.player != null) {
+                attackStrength = this.minecraft.player.getAttackStrengthScale(0.0F);
+            }
+            if (attackStrength < 1.0F) {
+                int y = screenHeight - 20;
+                int x = centerX + hotbarOffset + 6;
+                if (mainArm == HumanoidArm.RIGHT) {
+                    x = centerX - hotbarOffset - 22;
+                }
+                int progressHeight = (int) (attackStrength * 19.0F);
+                extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 18, 18);
+                extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE, 18, 18, 0, 18 - progressHeight, x, y + 18 - progressHeight, 18, progressHeight);
+            }
         }
     }
 
-    private void renderDualHotbar(DrawContext context, RenderTickCounter tickCounter) {
-        ClientPlayerEntity player = this.client.player;
+    @Unique
+    private void renderDualHotbar(GuiGraphicsExtractor extractor, DeltaTracker deltaTracker) {
+        LocalPlayer player = this.minecraft.player;
         if (player == null) return;
-        int screenWidth = context.getScaledWindowWidth();
-        int screenHeight = context.getScaledWindowHeight();
+
+        var window = this.minecraft.getWindow();
+        int screenWidth = window.getGuiScaledWidth();
+        int screenHeight = window.getGuiScaledHeight();
+
         int gap = LongHotbarConfig.INSTANCE.sideGap;
         int totalWidth = 182 + gap + 182;
         int baseX = (screenWidth - totalWidth) / 2;
@@ -54,53 +130,59 @@ public abstract class longHudMixin {
         int leftX = baseX + (swapped ? (182 + gap) : 0);
         int rightX = baseX + (swapped ? 0 : (182 + gap));
 
-        // 1. 绘制背景纹理
-        context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, HOTBAR_TEXTURE, leftX, screenHeight - 22, 182, 22);
-        context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, HOTBAR_TEXTURE, rightX, screenHeight - 22, 182, 22);
+        // 1. 渲染背景
+        extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SPRITE, leftX, screenHeight - 22, 182, 22);
+        extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SPRITE, rightX, screenHeight - 22, 182, 22);
 
-        PlayerInventory inv = player.getInventory();
+        var inv = player.getInventory();
         int selected = inv.getSelectedSlot();
-        int extendedStart = (LongHotbarConfig.INSTANCE.swapRow - 1) * 9 + 9;
-        int y = screenHeight - 22 + 3;
+        int swapRow = LongHotbarConfig.INSTANCE.swapRow;
+        int extendedStart = (swapRow - 1) * 9 + 9;
 
-        // 2. 绘制高亮框（在物品之前，确保物品覆盖高亮框）
-        context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, HOTBAR_SELECTION, leftX + selected * 20 - 1, screenHeight - 22 - 1, 24, 23);
+        // 2. 高亮框（先于物品渲染，避免遮挡）
+        extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SELECTION_SPRITE, leftX - 1 + selected * 20, screenHeight - 22 - 1, 24, 23);
 
-        // 3. 绘制主快捷栏物品
+        // 3. 物品：左边主手槽位
         for (int i = 0; i < 9; i++) {
             int x = leftX + 3 + i * 20;
-            renderItemStack(context, inv.getStack(i), x, y, i);
+            int y = screenHeight - 22 + 3;
+            renderItemStack(extractor, inv.getItem(i), x, y);
         }
-        // 4. 绘制扩展行物品
+        // 右边扩展槽位
         for (int i = 0; i < 9; i++) {
             int x = rightX + 3 + i * 20;
-            renderItemStack(context, inv.getStack(extendedStart + i), x, y, i);
+            int y = screenHeight - 22 + 3;
+            renderItemStack(extractor, inv.getItem(extendedStart + i), x, y);
         }
 
-        // 5. 副手
-        ItemStack offhand = player.getOffHandStack();
+        // 4. 副手背景与物品
+        ItemStack offhand = player.getOffhandItem();
         if (!offhand.isEmpty()) {
             int offX = baseX + LongHotbarConfig.INSTANCE.offhandOffset;
             int offY = screenHeight - 23;
-            context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, OFFHAND_LEFT, offX, offY, 29, 24);
-            renderItemStack(context, offhand, offX + 3, offY + 4, 140);
+            extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_OFFHAND_LEFT_SPRITE, offX, offY, 29, 24);
+            renderItemStack(extractor, offhand, offX + 3, offY + 4);
         }
     }
 
-    private void renderMultiHotbar(DrawContext context, RenderTickCounter tickCounter, LongHotbarConfig.HotbarMode mode) {
-        ClientPlayerEntity player = this.client.player;
+    @Unique
+    private void renderMultiHotbar(GuiGraphicsExtractor extractor, DeltaTracker deltaTracker, LongHotbarConfig.HotbarMode mode) {
+        LocalPlayer player = this.minecraft.player;
         if (player == null) return;
+
         int barCount = (mode == LongHotbarConfig.HotbarMode.TRIPLE) ? 3 : 4;
         int gap = LongHotbarConfig.INSTANCE.sideGap;
-        int screenWidth = context.getScaledWindowWidth();
-        int screenHeight = context.getScaledWindowHeight();
+        var window = this.minecraft.getWindow();
+        int screenWidth = window.getGuiScaledWidth();
+        int screenHeight = window.getGuiScaledHeight();
+
         int totalWidth = barCount * 182 + (barCount - 1) * gap;
         int baseX = (screenWidth - totalWidth) / 2;
 
-        // 1. 背景
+        // 渲染所有背景
         for (int bar = 0; bar < barCount; bar++) {
             int x = baseX + bar * (182 + gap);
-            context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, HOTBAR_TEXTURE, x, screenHeight - 22, 182, 22);
+            extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SPRITE, x, screenHeight - 22, 182, 22);
         }
 
         // 确保 displayOrder 有效
@@ -111,43 +193,41 @@ public abstract class longHudMixin {
         }
         int focusedBar = UltraModeHandler.getFocusedBar();
         int[] rowStarts = {0, 9, 18, 27};
-        PlayerInventory inv = player.getInventory();
+        var inv = player.getInventory();
         int selectedSlot = inv.getSelectedSlot();
-        int y = screenHeight - 22 + 3;
 
-        // 2. 绘制高亮框（在物品之前）
+        // 高亮
         if (focusedBar >= 0 && focusedBar < barCount) {
             int focusedX = baseX + focusedBar * (182 + gap);
-            context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, HOTBAR_SELECTION, focusedX + selectedSlot * 20 - 1, screenHeight - 22 - 1, 24, 23);
+            extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_SELECTION_SPRITE, focusedX - 1 + selectedSlot * 20, screenHeight - 22 - 1, 24, 23);
         }
 
-        // 3. 绘制所有栏位的物品
+        // 物品
         for (int bar = 0; bar < barCount; bar++) {
             int actualRow = displayOrder[bar];
             int startSlot = rowStarts[actualRow];
             int barX = baseX + bar * (182 + gap);
             for (int i = 0; i < 9; i++) {
                 int x = barX + 3 + i * 20;
-                renderItemStack(context, inv.getStack(startSlot + i), x, y, i);
+                int y = screenHeight - 22 + 3;
+                renderItemStack(extractor, inv.getItem(startSlot + i), x, y);
             }
         }
 
-        // 4. 副手
-        ItemStack offhand = player.getOffHandStack();
+        // 副手
+        ItemStack offhand = player.getOffhandItem();
         if (!offhand.isEmpty()) {
             int offX = baseX + LongHotbarConfig.INSTANCE.offhandOffset;
             int offY = screenHeight - 23;
-            context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, OFFHAND_LEFT, offX, offY, 29, 24);
-            renderItemStack(context, offhand, offX + 3, offY + 4, 140);
+            extractor.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_OFFHAND_LEFT_SPRITE, offX, offY, 29, 24);
+            renderItemStack(extractor, offhand, offX + 3, offY + 4);
         }
     }
 
-    private void renderItemStack(DrawContext context, ItemStack stack, int x, int y, int seed) {
-        if (this.client.player != null) {
-            context.drawItem(this.client.player, stack, x, y, seed);
-        } else {
-            context.drawItemWithoutEntity(stack, x, y);
-        }
-        context.drawStackOverlay(this.client.textRenderer, stack, x, y);
+    @Unique
+    private void renderItemStack(GuiGraphicsExtractor extractor, ItemStack stack, int x, int y) {
+        if (stack.isEmpty()) return;
+        extractor.item(stack, x, y);
+        extractor.itemDecorations(this.minecraft.font, stack, x, y);
     }
 }
