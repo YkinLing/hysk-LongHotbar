@@ -1,0 +1,33 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "BSD 2"
+
+[[mods]]
+modId = "longhotbar"
+version = "${version}"
+displayName = "LongHotbar"
+logoFile = "icon.png"
+description = '''
+LongHotbar The dual-column side-by-side quick bar enables you to quickly access more items in your backpack and offers a flexible item exchange mechanism.
+'''
+authors='''
+倾杺恒跃时空-YkinLing
+'''
+displayURL="https://modrinth.com/mod/hysk-longhotbar"
+
+[[mixins]]
+config = "longhotbar.mixins.json"
+
+[[dependencies.longhotbar]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21,1.21.1]"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.longhotbar]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "CLIENT"
